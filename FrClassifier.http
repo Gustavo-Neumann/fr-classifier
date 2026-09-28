@@ -1,0 +1,6 @@
+@FrClassifier_HostAddress = http://localhost:5241
+
+GET {{FrClassifier_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
