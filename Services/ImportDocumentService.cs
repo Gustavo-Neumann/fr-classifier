@@ -4,12 +4,12 @@ using FrClassifier.Repositories;
 
 namespace FrClassifier.Services;
 
-public sealed class FinancialDocumentImportService(
-    IEnumerable<IFinancialDocumentParser> parsers,
-    IFinancialDocumentRepository documents,
-    IFinancialDocumentStorage storage)
+public sealed class ImportDocumentService(
+    IEnumerable<IDocumentParser> parsers,
+    IDocumentRepository documents,
+    IDocumentStorage storage)
 {
-    public async Task<FinancialDocument> ImportAsync(
+    public async Task<Document> ImportAsync(
         string fileName,
         string contentType,
         long fileSizeBytes,
@@ -31,7 +31,7 @@ public sealed class FinancialDocumentImportService(
             throw new InvalidDataException("The uploaded document size does not match its content.");
         }
 
-        var document = new FinancialDocument
+        var document = new Document
         {
             Id = Guid.NewGuid(),
             FileName = safeFileName,

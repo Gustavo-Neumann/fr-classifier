@@ -3,20 +3,17 @@ using System;
 using FrClassifier.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace FrClassifier.Migrations
+namespace FrClassifier.Data.Migrations
 {
     [DbContext(typeof(FrClassifierDbContext))]
-    [Migration("20260929004949_InitialFinancialClassification")]
-    partial class InitialFinancialClassification
+    partial class FrClassifierDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,22 +22,21 @@ namespace FrClassifier.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialAccount", b =>
+            modelBuilder.Entity("FrClassifier.Entities.Account", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AccountingDocumentNumber")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
+                    b.Property<string>("AccountCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
-                    b.Property<decimal?>("AmountInCompanyCodeCurrency")
-                        .HasPrecision(19, 4)
-                        .HasColumnType("numeric(19,4)");
+                    b.Property<string>("AccountName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
-                    b.Property<decimal>("AmountInTransactionCurrency")
+                    b.Property<decimal>("Amount")
                         .HasPrecision(19, 4)
                         .HasColumnType("numeric(19,4)");
 
@@ -58,74 +54,57 @@ namespace FrClassifier.Migrations
                     b.Property<DateTimeOffset?>("ClassifiedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("CompanyCode")
+                    b.Property<string>("CurrencyCode")
                         .IsRequired()
-                        .HasMaxLength(4)
-                        .HasColumnType("character varying(4)");
-
-                    b.Property<string>("CompanyCodeCurrencyCode")
-                        .HasMaxLength(5)
-                        .HasColumnType("character varying(5)");
-
-                    b.Property<string>("CostCenter")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("DimensionsJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<DateOnly?>("DocumentDate")
                         .HasColumnType("date");
 
-                    b.Property<Guid>("FinancialDocumentId")
+                    b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("FiscalYear")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("GLAccount")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("GLAccountName")
+                    b.Property<string>("EntityCode")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("LedgerLineNumber")
-                        .IsRequired()
-                        .HasMaxLength(6)
-                        .HasColumnType("character varying(6)");
+                    b.Property<int?>("FiscalYear")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("LineDescription")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateOnly>("PostingDate")
+                    b.Property<DateOnly?>("PostingDate")
                         .HasColumnType("date");
 
-                    b.Property<string>("ProfitCenter")
+                    b.Property<decimal?>("ReportingAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)");
+
+                    b.Property<string>("ReportingCurrencyCode")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
-                    b.Property<string>("Segment")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
+                    b.Property<string>("SourceLocation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SourceReference")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("SourceRowHash")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<int>("SourceRowNumber")
+                    b.Property<int?>("SourceRowNumber")
                         .HasColumnType("integer");
-
-                    b.Property<string>("SourceWorksheet")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("TransactionCurrencyCode")
-                        .IsRequired()
-                        .HasMaxLength(5)
-                        .HasColumnType("character varying(5)");
 
                     b.HasKey("Id");
 
@@ -134,16 +113,19 @@ namespace FrClassifier.Migrations
 
                     b.HasIndex("ClassificationStatus", "PostingDate");
 
-                    b.HasIndex("FinancialDocumentId", "SourceWorksheet", "SourceRowNumber")
+                    b.HasIndex("DocumentId", "SourceLocation", "SourceRowNumber")
                         .IsUnique();
 
-                    b.ToTable("financial_accounts", (string)null);
+                    b.ToTable("accounts", (string)null);
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialAccountClassification", b =>
+            modelBuilder.Entity("FrClassifier.Entities.AccountClassification", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Category")
@@ -159,9 +141,6 @@ namespace FrClassifier.Migrations
                     b.Property<decimal?>("Confidence")
                         .HasPrecision(6, 5)
                         .HasColumnType("numeric(6,5)");
-
-                    b.Property<Guid>("FinancialAccountId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("ModelVersion")
                         .HasMaxLength(100)
@@ -185,12 +164,12 @@ namespace FrClassifier.Migrations
                     b.HasIndex("RequestId")
                         .IsUnique();
 
-                    b.HasIndex("FinancialAccountId", "ReceivedAt");
+                    b.HasIndex("AccountId", "ReceivedAt");
 
-                    b.ToTable("financial_account_classifications", (string)null);
+                    b.ToTable("account_classifications", (string)null);
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialDocument", b =>
+            modelBuilder.Entity("FrClassifier.Entities.Document", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -235,37 +214,37 @@ namespace FrClassifier.Migrations
 
                     b.HasIndex("UploadedAt");
 
-                    b.ToTable("financial_documents", (string)null);
+                    b.ToTable("documents", (string)null);
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialAccount", b =>
+            modelBuilder.Entity("FrClassifier.Entities.Account", b =>
                 {
-                    b.HasOne("FrClassifier.Entities.FinancialDocument", "FinancialDocument")
+                    b.HasOne("FrClassifier.Entities.Document", "Document")
                         .WithMany("Accounts")
-                        .HasForeignKey("FinancialDocumentId")
+                        .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("FinancialDocument");
+                    b.Navigation("Document");
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialAccountClassification", b =>
+            modelBuilder.Entity("FrClassifier.Entities.AccountClassification", b =>
                 {
-                    b.HasOne("FrClassifier.Entities.FinancialAccount", "FinancialAccount")
+                    b.HasOne("FrClassifier.Entities.Account", "Account")
                         .WithMany("Classifications")
-                        .HasForeignKey("FinancialAccountId")
+                        .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("FinancialAccount");
+                    b.Navigation("Account");
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialAccount", b =>
+            modelBuilder.Entity("FrClassifier.Entities.Account", b =>
                 {
                     b.Navigation("Classifications");
                 });
 
-            modelBuilder.Entity("FrClassifier.Entities.FinancialDocument", b =>
+            modelBuilder.Entity("FrClassifier.Entities.Document", b =>
                 {
                     b.Navigation("Accounts");
                 });

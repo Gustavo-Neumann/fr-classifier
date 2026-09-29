@@ -3,16 +3,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace FrClassifier.Migrations
+namespace FrClassifier.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialFinancialClassification : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "financial_documents",
+                name: "documents",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -27,33 +27,30 @@ namespace FrClassifier.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_financial_documents", x => x.Id);
+                    table.PrimaryKey("PK_documents", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "financial_accounts",
+                name: "accounts",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    FinancialDocumentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CompanyCode = table.Column<string>(type: "character varying(4)", maxLength: 4, nullable: false),
-                    FiscalYear = table.Column<int>(type: "integer", nullable: false),
-                    AccountingDocumentNumber = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    LedgerLineNumber = table.Column<string>(type: "character varying(6)", maxLength: 6, nullable: false),
-                    GLAccount = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    GLAccountName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    LineDescription = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    PostingDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    DocumentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    EntityCode = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    FiscalYear = table.Column<int>(type: "integer", nullable: true),
+                    AccountCode = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    AccountName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    PostingDate = table.Column<DateOnly>(type: "date", nullable: true),
                     DocumentDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    AmountInTransactionCurrency = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false),
-                    TransactionCurrencyCode = table.Column<string>(type: "character varying(5)", maxLength: 5, nullable: false),
-                    AmountInCompanyCodeCurrency = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: true),
-                    CompanyCodeCurrencyCode = table.Column<string>(type: "character varying(5)", maxLength: 5, nullable: true),
-                    ProfitCenter = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    CostCenter = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    Segment = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
-                    SourceWorksheet = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    SourceRowNumber = table.Column<int>(type: "integer", nullable: false),
+                    Amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false),
+                    CurrencyCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    ReportingAmount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: true),
+                    ReportingCurrencyCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
+                    SourceReference = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    SourceLocation = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    DimensionsJson = table.Column<string>(type: "jsonb", nullable: true),
+                    SourceRowNumber = table.Column<int>(type: "integer", nullable: true),
                     SourceRowHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     ClassificationStatus = table.Column<string>(type: "character varying(24)", maxLength: 24, nullable: false),
                     ClassificationRequestId = table.Column<Guid>(type: "uuid", nullable: true),
@@ -62,21 +59,21 @@ namespace FrClassifier.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_financial_accounts", x => x.Id);
+                    table.PrimaryKey("PK_accounts", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_financial_accounts_financial_documents_FinancialDocumentId",
-                        column: x => x.FinancialDocumentId,
-                        principalTable: "financial_documents",
+                        name: "FK_accounts_documents_DocumentId",
+                        column: x => x.DocumentId,
+                        principalTable: "documents",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "financial_account_classifications",
+                name: "account_classifications",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    FinancialAccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     RequestId = table.Column<Guid>(type: "uuid", nullable: false),
                     Category = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     Confidence = table.Column<decimal>(type: "numeric(6,5)", precision: 6, scale: 5, nullable: true),
@@ -88,51 +85,51 @@ namespace FrClassifier.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_financial_account_classifications", x => x.Id);
+                    table.PrimaryKey("PK_account_classifications", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_financial_account_classifications_financial_accounts_Financ~",
-                        column: x => x.FinancialAccountId,
-                        principalTable: "financial_accounts",
+                        name: "FK_account_classifications_accounts_AccountId",
+                        column: x => x.AccountId,
+                        principalTable: "accounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_account_classifications_FinancialAccountId_Receiv~",
-                table: "financial_account_classifications",
-                columns: new[] { "FinancialAccountId", "ReceivedAt" });
+                name: "IX_account_classifications_AccountId_ReceivedAt",
+                table: "account_classifications",
+                columns: new[] { "AccountId", "ReceivedAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_account_classifications_RequestId",
-                table: "financial_account_classifications",
+                name: "IX_account_classifications_RequestId",
+                table: "account_classifications",
                 column: "RequestId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_accounts_ClassificationRequestId",
-                table: "financial_accounts",
+                name: "IX_accounts_ClassificationRequestId",
+                table: "accounts",
                 column: "ClassificationRequestId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_accounts_ClassificationStatus_PostingDate",
-                table: "financial_accounts",
+                name: "IX_accounts_ClassificationStatus_PostingDate",
+                table: "accounts",
                 columns: new[] { "ClassificationStatus", "PostingDate" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_accounts_FinancialDocumentId_SourceWorksheet_Sour~",
-                table: "financial_accounts",
-                columns: new[] { "FinancialDocumentId", "SourceWorksheet", "SourceRowNumber" },
+                name: "IX_accounts_DocumentId_SourceLocation_SourceRowNumber",
+                table: "accounts",
+                columns: new[] { "DocumentId", "SourceLocation", "SourceRowNumber" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_documents_Sha256",
-                table: "financial_documents",
+                name: "IX_documents_Sha256",
+                table: "documents",
                 column: "Sha256");
 
             migrationBuilder.CreateIndex(
-                name: "IX_financial_documents_UploadedAt",
-                table: "financial_documents",
+                name: "IX_documents_UploadedAt",
+                table: "documents",
                 column: "UploadedAt");
         }
 
@@ -140,13 +137,13 @@ namespace FrClassifier.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "financial_account_classifications");
+                name: "account_classifications");
 
             migrationBuilder.DropTable(
-                name: "financial_accounts");
+                name: "accounts");
 
             migrationBuilder.DropTable(
-                name: "financial_documents");
+                name: "documents");
         }
     }
 }

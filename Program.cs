@@ -2,33 +2,33 @@ using FrClassifier.Data;
 using FrClassifier.Repositories;
 using FrClassifier.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
 
 builder.Services.AddControllers();
 var connectionString = builder.Configuration.GetConnectionString("FinancialDatabase")
     ?? throw new InvalidOperationException("ConnectionStrings:FinancialDatabase is required.");
 builder.Services.AddDbContext<FrClassifierDbContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddScoped<IFinancialDocumentRepository, FinancialDocumentRepository>();
-builder.Services.AddScoped<IFinancialAccountRepository, FinancialAccountRepository>();
-builder.Services.AddScoped<IFinancialDocumentParser, XlsxFinancialDocumentParser>();
-builder.Services.AddScoped<FinancialDocumentImportService>();
+builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
+builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+builder.Services.AddScoped<IDocumentParser, AcdocaXlsxImporter>();
+builder.Services.AddScoped<ImportDocumentService>();
 builder.Services.AddScoped<ClassificationDispatchService>();
 builder.Services.AddScoped<ClassificationResultService>();
-builder.Services.AddSingleton<IFinancialDocumentStorage, FinancialDocumentStorage>();
+builder.Services.AddSingleton<IDocumentStorage, LocalDocumentStorage>();
 builder.Services.AddSingleton<IClassificationMessagePublisher, RabbitMqClassificationMessagePublisher>();
 builder.Services.AddHostedService<RabbitMqClassificationResultConsumer>();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen(options =>
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FrClassifier API", Version = "v1" }));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "FrClassifier API v1"));
 }
 
 app.UseHttpsRedirection();

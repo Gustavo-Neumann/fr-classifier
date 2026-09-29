@@ -4,7 +4,7 @@ using FrClassifier.Repositories;
 namespace FrClassifier.Services;
 
 public sealed class ClassificationDispatchService(
-    IFinancialAccountRepository accounts,
+    IAccountRepository accounts,
     IClassificationMessagePublisher publisher,
     ILogger<ClassificationDispatchService> logger)
 {
@@ -36,24 +36,20 @@ public sealed class ClassificationDispatchService(
             var message = new ClassificationRequestMessage(
                 requestId,
                 account.Id,
-                account.FinancialDocumentId,
-                account.Ledger,
-                account.CompanyCode,
+                account.DocumentId,
+                account.EntityCode,
                 account.FiscalYear,
-                account.AccountingDocumentNumber,
-                account.LedgerLineNumber,
-                account.GLAccount,
-                account.GLAccountName,
-                account.LineDescription,
+                account.AccountCode,
+                account.AccountName,
+                account.Description,
                 account.PostingDate,
                 account.DocumentDate,
-                account.AmountInTransactionCurrency,
-                account.TransactionCurrencyCode,
-                account.AmountInCompanyCodeCurrency,
-                account.CompanyCodeCurrencyCode,
-                account.ProfitCenter,
-                account.CostCenter,
-                account.Segment);
+                account.Amount,
+                account.CurrencyCode,
+                account.ReportingAmount,
+                account.ReportingCurrencyCode,
+                account.SourceReference,
+                account.DimensionsJson);
 
             try
             {

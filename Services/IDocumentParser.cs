@@ -2,12 +2,12 @@ using FrClassifier.Entities;
 
 namespace FrClassifier.Services;
 
-public interface IFinancialDocumentParser
+public interface IDocumentParser
 {
     bool CanParse(string fileName, string contentType);
 
-    Task<IReadOnlyList<FinancialAccount>> ParseAsync(
+    Task<IReadOnlyList<Account>> ParseAsync(
         Stream content,
-        Guid financialDocumentId,
+        Guid documentId,
         CancellationToken cancellationToken);
 }

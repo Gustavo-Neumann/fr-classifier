@@ -1,30 +1,33 @@
 # FR Classifier
 
-API ASP.NET Core 10 para importar linhas financeiras de uma exportacao XLSX do
-SAP ACDOCA, manter a origem e encaminhar contas para um classificador externo por
-RabbitMQ. A API nao referencia nem executa Laya; o classificador Python e outro
-servico.
+API ASP.NET Core 10 para importar documentos financeiros, persistir contas e
+encaminha-las por RabbitMQ a um classificador externo. O dominio usa os conceitos
+genericos `Document`, `Account`, `AccountClassification` e `Category`; nao depende
+de SAP nem referencia a biblioteca Python/Laya.
 
-## Modelo financeiro
+## Formatos de documento
 
-O importador procura os cabecalhos tecnicos SAP nas primeiras 50 linhas de cada
-aba. Campos obrigatorios:
+`ImportDocumentService` seleciona uma implementacao de `IDocumentParser`. A
+implementacao inicial, `AcdocaXlsxImporter`, e especifica para uma exportacao SAP
+ACDOCA em XLSX. Ela converte as colunas de origem para o modelo canonico de
+conta; nomes SAP nao viram colunas obrigatorias no dominio. Os campos de origem
+que nao cabem no modelo comum ficam em `SourceReference` e `DimensionsJson`.
 
-| ACDOCA | Uso |
-| --- | --- |
-| `RLDNR`, `RBUKRS`, `GJAHR`, `BELNR`, `DOCLN` | Identidade do ledger, empresa, exercicio, documento e linha |
-| `RACCT` | Conta contabil |
-| `BUDAT` | Data de lancamento |
-| `WSL`, `RWCUR` | Valor e moeda da transacao |
+O importador atual exige `RLDNR`, `RBUKRS`, `GJAHR`, `BELNR`, `DOCLN`, `RACCT`,
+`BUDAT`, `WSL` e `RWCUR`. Le opcionalmente `BLDAT`, `HSL`, `RHCUR`, `TXT50`,
+`SGTXT`, `PRCTR`, `RCNTR` e `SEGMENT`. Um novo formato pode adicionar outro
+`IDocumentParser` sem mudar as entidades ou o contrato do classificador.
 
-Campos opcionais suportados: `BLDAT` (data do documento), `HSL`/`RHCUR`
-(valor/moeda da empresa), `TXT50` (descricao da conta), `SGTXT` (texto da
-linha), `PRCTR` (centro de lucro), `RCNTR` (centro de custo) e `SEGMENT`.
-Outros campos ACDOCA nao sao persistidos. Cada linha tambem guarda documento de
-origem, nome da aba, numero da linha e hash do conteudo; o XLSX original fica em
-`App_Data/financial-documents` por padrao, fora de `wwwroot`.
+O arquivo original e armazenado por padrao em `App_Data/financial-documents`,
+fora de `wwwroot`; cada conta guarda documento, localizacao da linha e hash para
+rastreabilidade. `Documents:StoragePath` pode apontar para outro caminho. O
+adaptador atual usa disco local, adequado para desenvolvimento e instancia
+unica; producao distribuida deve usar storage compartilhado.
 
-## API
+## Swagger e API
+
+Com a API em Development, a documentacao interativa fica em
+`http://localhost:5118/swagger`.
 
 - `POST /api/documents` recebe multipart com o campo `file` e um `.xlsx`.
 - `GET /api/documents/{id}` consulta status, hash e total de contas.
@@ -32,10 +35,14 @@ origem, nome da aba, numero da linha e hash do conteudo; o XLSX original fica em
 - `GET /api/documents/{id}/content` recupera o arquivo original.
 - `GET /api/accounts/{id}` consulta uma conta e sua classificacao mais recente.
 - `GET /api/ifrs18-categories` lista os codigos de categoria aceitos.
-- `POST /api/classifications/dispatch?limit=100` publica contas pendentes (limite maximo 500).
+- `POST /api/classifications/dispatch?limit=100` publica contas pendentes (maximo 500).
 
-A migracao inicial esta em `Migrations/`. Aplique-a antes de usar os endpoints
-que acessam o banco:
+## Banco de dados
+
+As migrations ficam em `Data/Migrations/`. O EF Core normalmente agrupa em cada
+migration uma alteracao coesa do modelo completo, em vez de criar uma migration
+por entidade; a primeira migration cria as tabelas `documents`, `accounts` e
+`account_classifications` juntas. Alteracoes futuras geram migrations incrementais.
 
 ```sh
 ASPNETCORE_ENVIRONMENT=Development dotnet ef database update
@@ -43,28 +50,19 @@ dotnet run
 ```
 
 Configure `ConnectionStrings__FinancialDatabase`, `RabbitMQ__Uri`,
-`FinancialDocuments__StoragePath` e `FinancialDocuments__MaxUploadBytes` por
-ambiente. Os valores de `appsettings.Development.json` sao apenas defaults
-locais. Em producao, use credenciais gerenciadas e armazenamento compartilhado
-duravel; o storage local serve para desenvolvimento e instancia unica.
+`Documents__StoragePath` e `Documents__MaxUploadBytes` por ambiente. Os valores
+em `appsettings.Development.json` sao defaults locais.
 
 ## Contrato RabbitMQ
 
 O ASP.NET publica JSON persistente na fila `financial.classification.requests`.
-Cada mensagem inclui `requestId`, `financialAccountId`, `financialDocumentId`,
-identificadores SAP, descricao, datas, valores, moedas e dimensoes de relatorio.
-O servico Python deve responder na fila `financial.classification.results` com
-`requestId`, `financialAccountId`, `category`, `confidence`, `rationale`,
-`classifierName` e `modelVersion`. Codigos aceitos: `operating`, `investing`,
-`financing`, `income_taxes` e `discontinued_operations`.
+A mensagem usa o contrato canonico (`requestId`, `accountId`, `documentId`,
+`entityCode`, `accountCode`, `description`, `amount`, `currencyCode` e dimensoes).
+O servico externo responde na fila `financial.classification.results` com
+`requestId`, `accountId`, `category`, `confidence`, `rationale`,
+`classifierName` e `modelVersion`. Os codigos aceitos sao `operating`,
+`investing`, `financing`, `income_taxes` e `discontinued_operations`.
 
-O resultado so recebe ack depois de persistido. Respostas invalidas ou para
-requisicoes antigas vao para `financial.classification.results.dead`; falhas
-transitorias de banco sao reencaminhadas. `RequestId` permite idempotencia. Esta
-primeira versao nao usa outbox transacional: uma interrupcao entre marcar uma
-conta como `Queued` e publicar pode exigir reconciliacao operacional.
-
-As categorias sao as cinco categorias da demonstracao do resultado do IFRS 18.
-O enquadramento real pode depender das atividades principais da entidade e de
-outros fatos; a API preserva a classificacao e confianca recebidas, mas nao
-substitui julgamento contabil.
+O resultado so recebe ack depois de persistido. Mensagens invalidas ou de
+requisicoes antigas vao para a fila dead-letter; falhas transitorias de banco
+sao reencaminhadas. Esta primeira versao nao usa outbox transacional.

@@ -4,19 +4,19 @@ using FrClassifier.Repositories;
 
 namespace FrClassifier.Services;
 
-public sealed class ClassificationResultService(IFinancialAccountRepository accounts)
+public sealed class ClassificationResultService(IAccountRepository accounts)
 {
     public Task ApplyAsync(
         ClassificationResultMessage message,
         string resultJson,
         CancellationToken cancellationToken)
     {
-        if (!IFRS18CategoryContract.TryParse(message.Category, out var category))
+        if (!CategoryContract.TryParse(message.Category, out var category))
         {
             throw new InvalidDataException($"Unknown IFRS 18 category '{message.Category}'.");
         }
 
-        if (message.RequestId == Guid.Empty || message.FinancialAccountId == Guid.Empty)
+        if (message.RequestId == Guid.Empty || message.AccountId == Guid.Empty)
         {
             throw new InvalidDataException("Classification result is missing its request or account identifier.");
         }
@@ -26,10 +26,10 @@ public sealed class ClassificationResultService(IFinancialAccountRepository acco
             throw new InvalidDataException("Classification result is missing the classifier name.");
         }
 
-        var classification = new FinancialAccountClassification
+        var classification = new AccountClassification
         {
             Id = Guid.NewGuid(),
-            FinancialAccountId = message.FinancialAccountId,
+            AccountId = message.AccountId,
             RequestId = message.RequestId,
             Category = category,
             Confidence = message.Confidence,

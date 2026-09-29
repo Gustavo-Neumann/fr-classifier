@@ -1,23 +1,12 @@
 namespace FrClassifier.Services;
 
-public interface IFinancialDocumentStorage
-{
-    Task<string> StoreAsync(
-        Guid documentId,
-        string fileName,
-        Stream content,
-        CancellationToken cancellationToken);
-
-    Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken);
-}
-
-public sealed class FinancialDocumentStorage : IFinancialDocumentStorage
+public sealed class LocalDocumentStorage : IDocumentStorage
 {
     private readonly string _rootPath;
 
-    public FinancialDocumentStorage(IConfiguration configuration, IWebHostEnvironment environment)
+    public LocalDocumentStorage(IConfiguration configuration, IWebHostEnvironment environment)
     {
-        var configuredPath = configuration["FinancialDocuments:StoragePath"];
+        var configuredPath = configuration["Documents:StoragePath"];
         var path = string.IsNullOrWhiteSpace(configuredPath)
             ? Path.Combine(environment.ContentRootPath, "App_Data", "financial-documents")
             : Path.IsPathRooted(configuredPath)

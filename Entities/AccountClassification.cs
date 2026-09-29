@@ -1,12 +1,12 @@
 namespace FrClassifier.Entities;
 
-public sealed class FinancialAccountClassification
+public sealed class AccountClassification
 {
     public Guid Id { get; set; }
-    public Guid FinancialAccountId { get; set; }
-    public FinancialAccount FinancialAccount { get; set; } = null!;
+    public Guid AccountId { get; set; }
+    public Account Account { get; set; } = null!;
     public Guid RequestId { get; set; }
-    public IFRS18Category Category { get; set; }
+    public Category Category { get; set; }
     public decimal? Confidence { get; set; }
     public string? Rationale { get; set; }
     public required string ClassifierName { get; set; }

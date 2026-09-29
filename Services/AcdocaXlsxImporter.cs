@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using ClosedXML.Excel;
 using FrClassifier.Entities;
 
 namespace FrClassifier.Services;
 
-public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
+public sealed class AcdocaXlsxImporter : IDocumentParser
 {
     private static readonly string[] RequiredColumns =
     [
@@ -16,14 +17,14 @@ public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
     public bool CanParse(string fileName, string contentType) =>
         Path.GetExtension(fileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
 
-    public Task<IReadOnlyList<FinancialAccount>> ParseAsync(
+    public Task<IReadOnlyList<Account>> ParseAsync(
         Stream content,
-        Guid financialDocumentId,
+        Guid documentId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var workbook = new XLWorkbook(content);
-        var accounts = new List<FinancialAccount>();
+        var accounts = new List<Account>();
 
         foreach (var worksheet in workbook.Worksheets)
         {
@@ -55,7 +56,7 @@ public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
                 accounts.Add(ParseAccount(
                     row,
                     headerValue.Columns,
-                    financialDocumentId,
+                    documentId,
                     worksheet.Name,
                     rowNumber));
             }
@@ -67,7 +68,7 @@ public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
                 "No ACDOCA rows were found. Expected columns: " + string.Join(", ", RequiredColumns));
         }
 
-        return Task.FromResult<IReadOnlyList<FinancialAccount>>(accounts);
+        return Task.FromResult<IReadOnlyList<Account>>(accounts);
     }
 
     private static (int RowNumber, Dictionary<string, int> Columns)? FindHeader(
@@ -94,7 +95,7 @@ public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
         return null;
     }
 
-    private static FinancialAccount ParseAccount(
+    private static Account ParseAccount(
         IXLRow row,
         IReadOnlyDictionary<string, int> columns,
         Guid documentId,
@@ -108,32 +109,37 @@ public sealed class XlsxFinancialDocumentParser : IFinancialDocumentParser
         }
 
         var hashInput = string.Join('\u001f', row.CellsUsed().Select(cell => cell.GetFormattedString()));
-        return new FinancialAccount
+        var ledger = RequiredText(row, columns, "RLDNR", rowNumber);
+        var entityCode = RequiredText(row, columns, "RBUKRS", rowNumber);
+        var fiscalYear = ParseInt(RequiredText(row, columns, "GJAHR", rowNumber), "GJAHR", rowNumber);
+        var documentNumber = RequiredText(row, columns, "BELNR", rowNumber);
+        var lineNumber = RequiredText(row, columns, "DOCLN", rowNumber);
+        var profitCenter = OptionalText(row, columns, "PRCTR");
+        var costCenter = OptionalText(row, columns, "RCNTR");
+        var segment = OptionalText(row, columns, "SEGMENT");
+
+        return new Account
         {
             Id = Guid.NewGuid(),
-            FinancialDocumentId = documentId,
-            Ledger = RequiredText(row, columns, "RLDNR", rowNumber),
-            CompanyCode = RequiredText(row, columns, "RBUKRS", rowNumber),
-            FiscalYear = ParseInt(RequiredText(row, columns, "GJAHR", rowNumber), "GJAHR", rowNumber),
-            AccountingDocumentNumber = RequiredText(row, columns, "BELNR", rowNumber),
-            LedgerLineNumber = RequiredText(row, columns, "DOCLN", rowNumber),
-            GLAccount = RequiredText(row, columns, "RACCT", rowNumber),
-            GLAccountName = OptionalText(row, columns, "TXT50"),
-            LineDescription = OptionalText(row, columns, "SGTXT"),
+            DocumentId = documentId,
+            EntityCode = entityCode,
+            FiscalYear = fiscalYear,
+            AccountCode = RequiredText(row, columns, "RACCT", rowNumber),
+            AccountName = OptionalText(row, columns, "TXT50"),
+            Description = OptionalText(row, columns, "SGTXT"),
             PostingDate = ParseDate(RequiredText(row, columns, "BUDAT", rowNumber), "BUDAT", rowNumber),
             DocumentDate = ParseOptionalDate(row, columns, "BLDAT", rowNumber),
-            AmountInTransactionCurrency = ParseDecimal(
+            Amount = ParseDecimal(
                 RequiredText(row, columns, "WSL", rowNumber), "WSL", rowNumber),
-            TransactionCurrencyCode = transactionCurrency,
-            AmountInCompanyCodeCurrency = ParseOptionalDecimal(row, columns, "HSL", rowNumber),
-            CompanyCodeCurrencyCode = OptionalText(row, columns, "RHCUR"),
-            ProfitCenter = OptionalText(row, columns, "PRCTR"),
-            CostCenter = OptionalText(row, columns, "RCNTR"),
-            Segment = OptionalText(row, columns, "SEGMENT"),
-            SourceWorksheet = worksheetName,
+            CurrencyCode = transactionCurrency,
+            ReportingAmount = ParseOptionalDecimal(row, columns, "HSL", rowNumber),
+            ReportingCurrencyCode = OptionalText(row, columns, "RHCUR"),
+            SourceReference = $"{ledger}/{entityCode}/{fiscalYear}/{documentNumber}/{lineNumber}",
+            SourceLocation = worksheetName,
             SourceRowNumber = rowNumber,
             SourceRowHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(hashInput)))
-                .ToLowerInvariant()
+                .ToLowerInvariant(),
+            DimensionsJson = JsonSerializer.Serialize(new { ledger, profitCenter, costCenter, segment })
         };
     }
 

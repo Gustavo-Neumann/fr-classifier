@@ -8,17 +8,17 @@ namespace FrClassifier.Controllers;
 
 [ApiController]
 [Route("api/documents")]
-public sealed class FinancialDocumentsController(
-    FinancialDocumentImportService importService,
-    IFinancialDocumentRepository documents,
-    IFinancialDocumentStorage storage,
+public sealed class DocumentsController(
+    ImportDocumentService importService,
+    IDocumentRepository documents,
+    IDocumentStorage storage,
     IConfiguration configuration) : ControllerBase
 {
     [HttpPost]
     [Consumes("multipart/form-data")]
     [ProducesResponseType<DocumentImportResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<DocumentImportResponse>> Upload(
-        [FromForm] IFormFile? file,
+        IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (file is null)
@@ -26,7 +26,7 @@ public sealed class FinancialDocumentsController(
             return BadRequest("Multipart field 'file' is required.");
         }
 
-        var maxUploadBytes = configuration.GetValue("FinancialDocuments:MaxUploadBytes", 25_000_000L);
+        var maxUploadBytes = configuration.GetValue("Documents:MaxUploadBytes", 25_000_000L);
         if (file.Length == 0)
         {
             return BadRequest("The uploaded document is empty.");
@@ -64,8 +64,8 @@ public sealed class FinancialDocumentsController(
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType<FinancialDocumentResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<FinancialDocumentResponse>> GetById(
+    [ProducesResponseType<DocumentResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<DocumentResponse>> GetById(
         Guid id,
         CancellationToken cancellationToken)
     {
@@ -75,18 +75,14 @@ public sealed class FinancialDocumentsController(
             return NotFound();
         }
 
-        return Ok(new FinancialDocumentResponse(
-            document.Id,
-            document.FileName,
-            document.Sha256,
-            document.ImportStatus.ToString(),
-            await documents.CountAccountsAsync(document.Id, cancellationToken),
-            document.UploadedAt));
+        return Ok(DocumentResponse.From(
+            document,
+            await documents.CountAccountsAsync(document.Id, cancellationToken)));
     }
 
     [HttpGet("{id:guid}/accounts")]
-    [ProducesResponseType<IReadOnlyList<FinancialAccountResponse>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<FinancialAccountResponse>>> GetAccounts(
+    [ProducesResponseType<IReadOnlyList<AccountResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<AccountResponse>>> GetAccounts(
         Guid id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100,
@@ -107,7 +103,7 @@ public sealed class FinancialDocumentsController(
             (page - 1) * pageSize,
             pageSize,
             cancellationToken);
-        return Ok(accounts.Select(ToResponse).ToArray());
+        return Ok(accounts.Select(AccountResponse.From).ToArray());
     }
 
     [HttpGet("{id:guid}/content")]
@@ -121,36 +117,5 @@ public sealed class FinancialDocumentsController(
 
         var content = await storage.OpenReadAsync(document.StorageKey, cancellationToken);
         return File(content, document.ContentType, document.FileName, enableRangeProcessing: true);
-    }
-
-    private static FinancialAccountResponse ToResponse(FinancialAccount account)
-    {
-        var classification = account.Classifications.FirstOrDefault();
-        return new FinancialAccountResponse(
-            account.Id,
-            account.FinancialDocumentId,
-            account.CompanyCode,
-            account.Ledger,
-            account.FiscalYear,
-            account.AccountingDocumentNumber,
-            account.LedgerLineNumber,
-            account.GLAccount,
-            account.GLAccountName,
-            account.LineDescription,
-            account.PostingDate,
-            account.DocumentDate,
-            account.AmountInTransactionCurrency,
-            account.TransactionCurrencyCode,
-            account.AmountInCompanyCodeCurrency,
-            account.CompanyCodeCurrencyCode,
-            account.ProfitCenter,
-            account.CostCenter,
-            account.Segment,
-            account.SourceWorksheet,
-            account.SourceRowNumber,
-            account.ClassificationStatus.ToString(),
-            classification is null ? null : IFRS18CategoryContract.ToCode(classification.Category),
-            classification?.Confidence,
-            account.ClassifiedAt);
     }
 }

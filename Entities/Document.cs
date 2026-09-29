@@ -1,6 +1,6 @@
 namespace FrClassifier.Entities;
 
-public sealed class FinancialDocument
+public sealed class Document
 {
     public Guid Id { get; set; }
     public required string FileName { get; set; }
@@ -12,5 +12,5 @@ public sealed class FinancialDocument
     public string? ImportError { get; set; }
     public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public ICollection<FinancialAccount> Accounts { get; set; } = new List<FinancialAccount>();
+    public ICollection<Account> Accounts { get; set; } = new List<Account>();
 }

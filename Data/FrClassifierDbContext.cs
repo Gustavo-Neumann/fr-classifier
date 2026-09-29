@@ -6,16 +6,16 @@ namespace FrClassifier.Data;
 public sealed class FrClassifierDbContext(DbContextOptions<FrClassifierDbContext> options)
     : DbContext(options)
 {
-    public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
-    public DbSet<FinancialAccount> FinancialAccounts => Set<FinancialAccount>();
-    public DbSet<FinancialAccountClassification> FinancialAccountClassifications =>
-        Set<FinancialAccountClassification>();
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountClassification> AccountClassifications =>
+        Set<AccountClassification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<FinancialDocument>(entity =>
+        modelBuilder.Entity<Document>(entity =>
         {
-            entity.ToTable("financial_documents");
+            entity.ToTable("documents");
             entity.HasKey(document => document.Id);
             entity.Property(document => document.FileName).HasMaxLength(255).IsRequired();
             entity.Property(document => document.ContentType).HasMaxLength(127).IsRequired();
@@ -25,33 +25,29 @@ public sealed class FrClassifierDbContext(DbContextOptions<FrClassifierDbContext
             entity.HasIndex(document => document.UploadedAt);
         });
 
-        modelBuilder.Entity<FinancialAccount>(entity =>
+        modelBuilder.Entity<Account>(entity =>
         {
-            entity.ToTable("financial_accounts");
+            entity.ToTable("accounts");
             entity.HasKey(account => account.Id);
-            entity.Property(account => account.CompanyCode).HasMaxLength(4).IsRequired();
-            entity.Property(account => account.Ledger).HasMaxLength(5).IsRequired();
-            entity.Property(account => account.AccountingDocumentNumber).HasMaxLength(10).IsRequired();
-            entity.Property(account => account.LedgerLineNumber).HasMaxLength(6).IsRequired();
-            entity.Property(account => account.GLAccount).HasMaxLength(10).IsRequired();
-            entity.Property(account => account.GLAccountName).HasMaxLength(100);
-            entity.Property(account => account.LineDescription).HasMaxLength(200);
-            entity.Property(account => account.TransactionCurrencyCode).HasMaxLength(5).IsRequired();
-            entity.Property(account => account.CompanyCodeCurrencyCode).HasMaxLength(5);
-            entity.Property(account => account.AmountInTransactionCurrency).HasPrecision(19, 4);
-            entity.Property(account => account.AmountInCompanyCodeCurrency).HasPrecision(19, 4);
-            entity.Property(account => account.ProfitCenter).HasMaxLength(10);
-            entity.Property(account => account.CostCenter).HasMaxLength(10);
-            entity.Property(account => account.Segment).HasMaxLength(10);
-            entity.Property(account => account.SourceWorksheet).HasMaxLength(100).IsRequired();
+            entity.Property(account => account.EntityCode).HasMaxLength(100);
+            entity.Property(account => account.AccountCode).HasMaxLength(100);
+            entity.Property(account => account.AccountName).HasMaxLength(200);
+            entity.Property(account => account.Description).HasMaxLength(1000);
+            entity.Property(account => account.CurrencyCode).HasMaxLength(10).IsRequired();
+            entity.Property(account => account.ReportingCurrencyCode).HasMaxLength(10);
+            entity.Property(account => account.Amount).HasPrecision(19, 4);
+            entity.Property(account => account.ReportingAmount).HasPrecision(19, 4);
+            entity.Property(account => account.SourceReference).HasMaxLength(500);
+            entity.Property(account => account.SourceLocation).HasMaxLength(500);
+            entity.Property(account => account.DimensionsJson).HasColumnType("jsonb");
             entity.Property(account => account.SourceRowHash).HasMaxLength(64).IsRequired();
             entity.Property(account => account.ClassificationStatus)
                 .HasConversion<string>()
                 .HasMaxLength(24);
             entity.HasIndex(account => new
             {
-                account.FinancialDocumentId,
-                account.SourceWorksheet,
+                account.DocumentId,
+                account.SourceLocation,
                 account.SourceRowNumber
             }).IsUnique();
             entity.HasIndex(account => new
@@ -60,15 +56,15 @@ public sealed class FrClassifierDbContext(DbContextOptions<FrClassifierDbContext
                 account.PostingDate
             });
             entity.HasIndex(account => account.ClassificationRequestId).IsUnique();
-            entity.HasOne(account => account.FinancialDocument)
+            entity.HasOne(account => account.Document)
                 .WithMany(document => document.Accounts)
-                .HasForeignKey(account => account.FinancialDocumentId)
+                .HasForeignKey(account => account.DocumentId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<FinancialAccountClassification>(entity =>
+        modelBuilder.Entity<AccountClassification>(entity =>
         {
-            entity.ToTable("financial_account_classifications");
+            entity.ToTable("account_classifications");
             entity.HasKey(classification => classification.Id);
             entity.Property(classification => classification.Category)
                 .HasConversion<string>()
@@ -81,12 +77,12 @@ public sealed class FrClassifierDbContext(DbContextOptions<FrClassifierDbContext
             entity.HasIndex(classification => classification.RequestId).IsUnique();
             entity.HasIndex(classification => new
             {
-                classification.FinancialAccountId,
+                classification.AccountId,
                 classification.ReceivedAt
             });
-            entity.HasOne(classification => classification.FinancialAccount)
+            entity.HasOne(classification => classification.Account)
                 .WithMany(account => account.Classifications)
-                .HasForeignKey(classification => classification.FinancialAccountId)
+                .HasForeignKey(classification => classification.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
