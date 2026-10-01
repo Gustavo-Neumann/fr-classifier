@@ -11,9 +11,19 @@ public sealed class ClassificationResultService(IAccountRepository accounts)
         string resultJson,
         CancellationToken cancellationToken)
     {
-        if (!CategoryContract.TryParse(message.Category, out var category))
+        Category? category = null;
+        if (message.Category is not null)
         {
-            throw new InvalidDataException($"Unknown IFRS 18 category '{message.Category}'.");
+            if (!CategoryContract.TryParse(message.Category, out var parsedCategory))
+            {
+                throw new InvalidDataException($"Unknown IFRS 18 category '{message.Category}'.");
+            }
+
+            category = parsedCategory;
+        }
+        else if (!message.NeedsReview)
+        {
+            throw new InvalidDataException("A classification without a category must require manual review.");
         }
 
         if (message.RequestId == Guid.Empty || message.AccountId == Guid.Empty)
@@ -34,6 +44,7 @@ public sealed class ClassificationResultService(IAccountRepository accounts)
             Category = category,
             Confidence = message.Confidence,
             Rationale = message.Rationale,
+            NeedsReview = message.NeedsReview,
             ClassifierName = message.ClassifierName,
             ModelVersion = message.ModelVersion,
             ResultJson = resultJson

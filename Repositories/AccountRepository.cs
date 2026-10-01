@@ -59,7 +59,7 @@ public sealed class AccountRepository(FrClassifierDbContext dbContext) : IAccoun
             throw new KeyNotFoundException("Account was not found.");
         }
 
-        if (account.ClassificationStatus == ClassificationStatus.Classified
+        if (account.ClassificationStatus is ClassificationStatus.Classified or ClassificationStatus.NeedsReview
             && account.ClassificationRequestId == classification.RequestId)
         {
             return;
@@ -77,7 +77,9 @@ public sealed class AccountRepository(FrClassifierDbContext dbContext) : IAccoun
         }
 
         account.Classifications.Add(classification);
-        account.ClassificationStatus = ClassificationStatus.Classified;
+        account.ClassificationStatus = classification.NeedsReview
+            ? ClassificationStatus.NeedsReview
+            : ClassificationStatus.Classified;
         account.ClassifiedAt = classification.ReceivedAt;
         await dbContext.SaveChangesAsync(cancellationToken);
     }

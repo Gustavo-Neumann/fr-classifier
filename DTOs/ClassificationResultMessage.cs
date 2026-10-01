@@ -3,8 +3,9 @@ namespace FrClassifier.DTOs;
 public sealed record ClassificationResultMessage(
     Guid RequestId,
     Guid AccountId,
-    string Category,
+    string? Category,
     decimal? Confidence,
     string? Rationale,
     string ClassifierName,
-    string? ModelVersion);
+    string? ModelVersion,
+    bool NeedsReview);

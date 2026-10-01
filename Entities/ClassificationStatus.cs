@@ -5,5 +5,6 @@ public enum ClassificationStatus
     Pending,
     Queued,
     Classified,
-    Failed
+    Failed,
+    NeedsReview
 }

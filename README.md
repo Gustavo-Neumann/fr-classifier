@@ -45,13 +45,19 @@ por entidade; a primeira migration cria as tabelas `documents`, `accounts` e
 `account_classifications` juntas. Alteracoes futuras geram migrations incrementais.
 
 ```sh
+cp .env.example .env
 ASPNETCORE_ENVIRONMENT=Development dotnet ef database update
 dotnet run
 ```
 
-Configure `ConnectionStrings__FinancialDatabase`, `RabbitMQ__Uri`,
-`Documents__StoragePath` e `Documents__MaxUploadBytes` por ambiente. Os valores
-em `appsettings.Development.json` sao defaults locais.
+O arquivo `.env` guarda os valores locais de desenvolvimento e não deve ser
+versionado. Configure `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`,
+`DATABASE_USER`, `DATABASE_PASSWORD`, `RABBITMQ_HOST`, `RABBITMQ_PORT`,
+`RABBITMQ_USER` e `RABBITMQ_PASSWORD`; a aplicação monta a connection string
+PostgreSQL e a URI AMQP a partir desses campos. O Compose define as mesmas
+variáveis explicitamente para usar os nomes DNS `db` e `rabbitmq` na rede Docker.
+`Documents__StoragePath` e `Documents__MaxUploadBytes` continuam configuráveis
+por ambiente/appsettings.
 
 ## Contrato RabbitMQ
 

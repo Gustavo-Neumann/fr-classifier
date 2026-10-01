@@ -78,13 +78,20 @@ public sealed class AcdocaXlsxImporter : IDocumentParser
         var searchThroughRow = Math.Min(lastRowNumber, 50);
         for (var rowNumber = 1; rowNumber <= searchThroughRow; rowNumber++)
         {
-            var columns = worksheet.Row(rowNumber)
-                .CellsUsed()
-                .Where(cell => !string.IsNullOrWhiteSpace(cell.GetString()))
-                .ToDictionary(
-                    cell => cell.GetString().Trim().ToUpperInvariant(),
-                    cell => cell.Address.ColumnNumber,
-                    StringComparer.Ordinal);
+            var columns = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var cell in worksheet.Row(rowNumber).CellsUsed())
+            {
+                if (cell.DataType != XLDataType.Text)
+                {
+                    continue;
+                }
+
+                var name = cell.GetString().Trim().ToUpperInvariant();
+                if (name.Length > 0)
+                {
+                    columns.TryAdd(name, cell.Address.ColumnNumber);
+                }
+            }
 
             if (RequiredColumns.All(columns.ContainsKey))
             {

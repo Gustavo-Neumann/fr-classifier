@@ -23,7 +23,8 @@ public sealed record AccountResponse(
     string ClassificationStatus,
     string? Category,
     decimal? Confidence,
-    DateTimeOffset? ClassifiedAt)
+    DateTimeOffset? ClassifiedAt,
+    bool NeedsReview)
 {
     public static AccountResponse From(Account account)
     {
@@ -47,8 +48,9 @@ public sealed record AccountResponse(
             account.SourceRowNumber,
             account.DimensionsJson,
             account.ClassificationStatus.ToString(),
-            classification is null ? null : CategoryContract.ToCode(classification.Category),
+            classification?.Category is { } category ? CategoryContract.ToCode(category) : null,
             classification?.Confidence,
-            account.ClassifiedAt);
+            account.ClassifiedAt,
+            classification?.NeedsReview ?? false);
     }
 }
